@@ -1,0 +1,86 @@
+// Locally: SQLite. For production change provider to "postgresql" (e.g. Supabase) and DATABASE_URL.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  name          String
+  passwordHash  String?
+  googleId      String?    @unique
+  role          String     @default("USER") // USER | ADMIN
+  premiumUntil  DateTime?
+  consentAt     DateTime   // parent's GDPR consent
+  childName     String?    // only a first name / nickname
+  childAge      String?    // age range, e.g. "4-6"
+  createdAt     DateTime   @default(now())
+  progress      Progress[]
+  favorites     Favorite[]
+  payments      Payment[]
+  resetTokens   ResetToken[]
+}
+
+model Day {
+  id          String     @id @default(cuid())
+  number      Int        @unique
+  title       String
+  summary     String
+  body        String     // steps, one per line
+  minutes     Int        @default(15)
+  category    String     @default("Zabawa")
+  emoji       String     @default("🌱")
+  audioUrl    String?
+  isFree      Boolean    @default(false)
+  published   Boolean    @default(true)
+  updatedAt   DateTime   @updatedAt
+  progress    Progress[]
+  favorites   Favorite[]
+}
+
+model Progress {
+  id          String   @id @default(cuid())
+  userId      String
+  dayId       String
+  completedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day         Day      @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  @@unique([userId, dayId])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  dayId     String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day       Day      @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  @@unique([userId, dayId])
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int      // grosze
+  currency    String   @default("pln")
+  method      String   // blik | card | demo
+  status      String   // paid | pending | failed
+  providerRef String?  @unique
+  receiptNo   String   @unique
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
